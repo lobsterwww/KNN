@@ -1,0 +1,84 @@
+import numpy
+import matplotlib
+from os import listdir
+import numpy as np
+import operator
+
+#将图片转换为向量
+def img2vector(filename):
+    returnVect=np.zeros((1,1024)) #生成1行1024列的全零矩阵
+    fr = open(filename)
+    for i in range(32):
+        lineStr = fr.readline()
+        for j in range(32):
+            returnVect[0,32*i+j] = int(lineStr[j])
+    return returnVect
+
+#单条数据（测试数据），“训练”数据集，对应训练数据集的数字标签，选前k个参数
+def classify0(testData,dataSet,labels,k):
+    dataSetSize = dataSet.shape[0]
+    diffMat = np.tile(testData,(dataSetSize ,1))-dataSet
+
+
+
+    #使用欧氏距离公式计算距离
+    sqDiffMat = diffMat**2
+    sqDistances =  sqDiffMat.sum(axis = 1) #axis=1：按行计算（计算和）
+
+    distances=sqDistances**0.5
+    sortedDistIndicies = distances.argsort() #argsort()将distances中的数据从小到大排列，然后返回其对应由下标组成的list
+
+    classCount = {}
+
+    #选择距离最小的k个点，这里k=3
+    for i in range(k):
+        voteIlabel = labels[sortedDistIndicies[i]] #找到差值对应下标 在labels中对应的数据标签是多少
+        classCount[voteIlabel]=classCount.get(voteIlabel,0) +1 #通过hash的方式统计结论标签出现的次数
+    #排序
+    print(classCount)
+    sortedClassCount=sorted(classCount.items(),key=operator.itemgetter(1),reverse = True)
+    return sortedClassCount[0][0]
+
+
+def handwritingClassTest():
+    hwLabels = []
+    #获取目录的内容
+    trainingFileList = listdir('trainingDigits')
+    m_len = len(trainingFileList)
+    trainingMat = np.zeros((m_len,1024))
+
+    for i in range(m_len):
+        fileNameStr=trainingFileList[i] #通过文件名获得数据 对应的数字
+        fileStr = fileNameStr.split('.')[0]
+        classNumStr = int(fileStr.split('_')[0])
+        hwLabels.append(classNumStr)
+
+        trainingMat[i,:] = img2vector('trainingDigits/%s' %fileNameStr)
+        # print(trainingMat[i][0:32])
+    # print(hwLabels)
+    # print(trainingMat.size)
+    testFileList = listdir('testDigits')
+    errorCount =0.0
+
+    mTest_len = len(testFileList)
+    for i in range(mTest_len):
+        fileNameStr = testFileList[i] #获取数据集文件名字
+        fileStr = fileNameStr.split('.')[0]
+        classNumStr = int(fileStr.split('_')[0]) #找到其对应是什么数据
+        vectorUnderTest = img2vector('testDigits/%s'%fileNameStr)
+
+        classifierResult = classify0(vectorUnderTest,trainingMat,hwLabels,3)
+
+        print("判断的数字是%d,而其真实数字是%d"%(classifierResult,classNumStr))
+        if(classifierResult!=classNumStr):errorCount += 1.0
+
+    print("判断错误的实例有%d个" % errorCount)
+    print("错误率是%f" % (errorCount / float(mTest_len)))
+
+
+def main():
+    handwritingClassTest()
+
+
+if __name__ == '__main__':
+    main()
